@@ -1,0 +1,6 @@
+{
+  "name": "hospital-rx",
+  "version": "1.0.0",
+  "description": "Doctor <-> Pharmacy/Lab live inventory prototype (LAN, zero dependencies)",
+  "scripts": { "start": "node server.js" }
+}

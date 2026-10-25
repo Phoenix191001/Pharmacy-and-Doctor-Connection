@@ -1,0 +1,21 @@
+:root{--bg:#f4f6f8;--card:#fff;--ink:#1c2733;--mute:#6b7886;--line:#e1e6eb;--pri:#0f766e;--ok:#15803d;--okbg:#dcfce7;--bad:#b91c1c;--badbg:#fee2e2;--warn:#a16207;--warnbg:#fef3c7}
+@media(prefers-color-scheme:dark){:root{--bg:#10161c;--card:#18212a;--ink:#e6edf3;--mute:#8b9aaa;--line:#2a3642;--pri:#2dd4bf;--ok:#4ade80;--okbg:#14301f;--bad:#f87171;--badbg:#3b1717;--warn:#fbbf24;--warnbg:#3a2e0c}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pri);color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+@media(prefers-color-scheme:dark){header{color:#06201d}}
+header h1{margin:0;font-size:18px}.live{font-size:12px}
+main{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr 1fr}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h2{margin:0 0 12px;font-size:16px}.full{grid-column:1/-1}
+input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+input,select{width:100%}button{cursor:pointer;background:var(--pri);color:#fff;border:0}
+@media(prefers-color-scheme:dark){button{color:#06201d}}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}button:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:8px;margin-bottom:8px}.row>*{flex:1}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}th{font-size:12px;color:var(--mute);text-transform:uppercase}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.in{background:var(--okbg);color:var(--ok)}.out{background:var(--badbg);color:var(--bad)}.low{background:var(--warnbg);color:var(--warn)}
+.mute{color:var(--mute);font-size:13px}.alt{background:var(--warnbg);border-radius:6px;padding:8px;margin:6px 0}
+.med{padding:8px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.med>div{flex:1}.med button{flex:none}
