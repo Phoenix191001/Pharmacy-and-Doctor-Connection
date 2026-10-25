@@ -1,0 +1,12 @@
+{
+  "name": "kihd-pharmacy-prototype",
+  "version": "1.0.0",
+  "description": "Pharmacy/Lab side of the Karachi Institute of Heart Diseases prototype",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
