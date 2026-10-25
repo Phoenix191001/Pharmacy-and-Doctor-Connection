@@ -19,6 +19,10 @@ npm run seed
 
 Data lives in `data/db.json` (seeded with 18 medicines on first run). Delete it to reset. Only `db.js` touches storage.
 
+## Doctor console
+
+Open `/doctor/`: enter patient details, search medicines (stock shown live), set quantity and dosage, and send. The prescription appears instantly in the pharmacy queue, and its status flips to Dispensed when the pharmacy hands it over.
+
 ## API
 
 | Method | Path | Notes |
@@ -32,4 +36,4 @@ Data lives in `data/db.json` (seeded with 18 medicines on first run). Delete it 
 
 ## Files
 
-`server.js`, `db.js`, `seed.js`, `public/shared.css`, `public/shared.js`, `public/lab/index.html`
+`server.js`, `db.js`, `seed.js`, `public/shared.css`, `public/shared.js`, `public/lab/index.html`, `public/doctor/index.html`

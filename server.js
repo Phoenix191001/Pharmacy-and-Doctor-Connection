@@ -159,7 +159,7 @@ function landing(res) {
 <title>KIHD Prototype</title><link rel="stylesheet" href="/shared.css">
 <main class="wrap"><h1>Karachi Institute of Heart Diseases</h1>
 <p class="muted">Hospital prototype server is running.</p>
-<div class="card"><a class="btn" href="/lab/">Open Pharmacy / Lab</a></div>
+<div class="card"><a class="btn" href="/doctor/">Open Doctor Console</a> <a class="btn" href="/lab/">Open Pharmacy / Lab</a></div>
 <p class="muted">API: /api/medicines · /api/prescriptions · /api/events</p></main>`);
 }
 
