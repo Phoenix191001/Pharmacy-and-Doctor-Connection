@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doctor Console</title>
+<link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+<header><h1>🩺 Doctor Console</h1><span class="live" id="live">○ Connecting...</span></header>
+<main>
+  <section class="card">
+    <h2>1. Patient</h2>
+    <div class="row"><input id="pName" placeholder="Patient name *"><input id="pAge" type="number" placeholder="Age"></div>
+    <div class="row"><input id="pPhone" placeholder="Phone number"><input id="pToken" placeholder="Token ID"></div>
+    <div class="row"><input id="doctor" placeholder="Doctor name" value="Dr. "></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Prescription</h2>
+    <div id="rxItems"></div>
+    <div class="row">
+      <button id="send">Send to Lab / Pharmacy</button>
+      <button class="ghost" id="clear">Clear</button>
+    </div>
+    <div class="mute" id="msg"></div>
+  </section>
+
+  <section class="card full">
+    <h2>Search medicine (live stock)</h2>
+    <input id="q" placeholder="Search by brand or formula, e.g. Augmentin or Paracetamol" autofocus>
+    <div id="results" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card full">
+    <h2>Sent prescriptions</h2>
+    <table><thead><tr><th>ID</th><th>Patient</th><th>Medicines</th><th>Status</th><th></th></tr></thead><tbody id="sent"></tbody></table>
+  </section>
+</main>
+<script src="/shared.js"></script>
+<script>
+let meds = [], sent = [], cart = [];
+const $ = (id) => document.getElementById(id);
+
+async function refresh() {
+  [meds, sent] = await Promise.all([API.get('/api/medicines'), API.get('/api/prescriptions')]);
+  renderResults(); renderCart(); renderSent();
+}
+
+function renderResults() {
+  const q = $('q').value.trim().toLowerCase();
+  const list = q ? meds.filter((m) => (m.name + ' ' + m.formula).toLowerCase().includes(q)) : [];
+  $('results').innerHTML = !q ? '<div class="mute">Type to search the pharmacy stock.</div>' :
+    list.length ? list.map((m) => {
+      let alts = '';
+      if (m.stock <= 0) {
+        const a = meds.filter((x) => x.id !== m.id && x.formula.toLowerCase() === m.formula.toLowerCase() && x.stock > 0);
+        alts = a.length
+          ? `<div class="alt"><b>Same formula (${esc(m.formula)}) available:</b>` +
+            a.map((x) => `<div class="med"><div>${esc(x.name)} ${stockBadge(x)}</div><button onclick="add('${x.id}')">Use this</button></div>`).join('') + '</div>'
+          : '<div class="alt">No in-stock alternative with the same formula.</div>';
+      }
+      return `<div class="med"><div><b>${esc(m.name)}</b> <span class="mute">${esc(m.formula)} · ${esc(m.form)}</span><br>${stockBadge(m)}</div>
+        <button onclick="add('${m.id}')" ${m.stock <= 0 ? 'class="ghost"' : ''}>Add</button></div>${alts}`;
+    }).join('') : '<div class="mute">No medicine found.</div>';
+}
+
+function add(id) {
+  const m = meds.find((x) => x.id === id);
+  if (!cart.find((c) => c.medicineId === id)) cart.push({ medicineId: id, qty: 1, dosage: '' });
+  renderCart();
+}
+function renderCart() {
+  $('rxItems').innerHTML = cart.length ? cart.map((c, i) => {
+    const m = meds.find((x) => x.id === c.medicineId) || {};
+    return `<div class="med"><div><b>${esc(m.name)}</b> ${stockBadge(m)}<div class="row" style="margin:6px 0 0">
+      <input type="number" min="1" value="${c.qty}" style="max-width:80px" onchange="cart[${i}].qty=this.value" title="Quantity">
+      <input placeholder="Dosage, e.g. 1 tablet 3x daily" value="${esc(c.dosage)}" onchange="cart[${i}].dosage=this.value"></div></div>
+      <button class="ghost" onclick="cart.splice(${i},1);renderCart()">✕</button></div>`;
+  }).join('') : '<div class="mute">No medicines added yet.</div>';
+}
+
+function renderSent() {
+  $('sent').innerHTML = sent.length ? sent.map((r) => `<tr><td>${r.id}</td><td>${esc(r.patient.name)}</td>
+    <td>${r.items.map((i) => esc(i.name) + ' ×' + i.qty).join(', ')}</td>
+    <td><span class="badge ${r.status === 'dispensed' ? 'in' : 'low'}">${r.status === 'dispensed' ? 'Dispensed' : 'Waiting at pharmacy'}</span></td>
+    <td><button class="ghost" onclick="printRx('${r.id}')">Print</button></td></tr>`).join('')
+    : '<tr><td colspan="5" class="mute">Nothing sent yet.</td></tr>';
+}
+
+$('q').oninput = renderResults;
+$('clear').onclick = () => { cart = []; renderCart(); $('msg').textContent = ''; };
+$('send').onclick = async () => {
+  try {
+    const rx = await API.post('/api/prescriptions', {
+      patient: { name: $('pName').value.trim(), age: $('pAge').value, phone: $('pPhone').value, token: $('pToken').value },
+      doctor: $('doctor').value, items: cart,
+    });
+    $('msg').textContent = rx.id + ' sent to pharmacy.';
+    cart = []; renderCart();
+    await refresh();
+    printRx(rx.id);
+  } catch (e) { $('msg').textContent = e.message; }
+};
+
+function printRx(id) {
+  const r = sent.find((x) => x.id === id); if (!r) return;
+  const w = window.open('', '_blank');
+  w.document.write(`<title>${r.id}</title><body style="font-family:sans-serif;max-width:600px;margin:30px auto">
+    <h2>Karachi Institute of Heart Diseases</h2><h3>Prescription ${r.id}</h3>
+    <p><b>Patient:</b> ${esc(r.patient.name)} &nbsp; <b>Age:</b> ${esc(r.patient.age)} &nbsp; <b>Phone:</b> ${esc(r.patient.phone)} &nbsp; <b>Token:</b> ${esc(r.patient.token)}</p>
+    <p><b>Date:</b> ${new Date(r.createdAt).toLocaleString()}</p><hr>
+    <ol>${r.items.map((i) => `<li style="margin:10px 0"><b>${esc(i.name)}</b> (${esc(i.formula)}) — Qty ${i.qty}<br>${esc(i.dosage)}</li>`).join('')}</ol>
+    <hr><p>${esc(r.doctor)}</p><script>print()<\/script>`);
+  w.document.close();
+}
+
+onLive(refresh);
+refresh();
+</script>
+</body>
+</html>
