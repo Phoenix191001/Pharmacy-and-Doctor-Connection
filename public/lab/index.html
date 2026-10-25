@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pharmacy / Lab — KIHD</title>
-<link rel="stylesheet" href="/shared.css">
+<link rel="stylesheet" href="../shared.css">
 <style>
   .alert { border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; background: var(--warn-bg); border: 1px solid var(--warn); }
   .alert ul { margin: 6px 0 0; padding-left: 18px; }
@@ -24,24 +24,18 @@
   .filter { width: 100%; max-width: 320px; margin-bottom: 10px; }
   form.add { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
   form.add label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .srvbar:not([hidden]) { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .empty { color: var(--muted); }
 </style>
 </head>
 <body>
-<script>
-  if (location.protocol === 'file:') {
-    document.write('<div style="font:16px system-ui;padding:24px;max-width:560px;margin:40px auto;border:2px solid #c0392b;border-radius:12px">' +
-      '<h2>Open this through the server</h2><p>This page was opened as a file, so styles and data cannot load.</p>' +
-      '<p>Run <code>npm start</code> in the project folder, then open <b>http://localhost:3000/lab/</b></p></div>');
-    document.close();
-  }
-</script>
 <div class="wrap">
   <header class="top">
     <h1>Pharmacy / Lab <span class="muted" style="font-weight:400">· Karachi Institute of Heart Diseases</span></h1>
     <span id="live" class="live off">○ Reconnecting</span>
   </header>
 
+  <div id="srvbar" class="card srvbar" hidden><span>Opened as a file. Server address:</span><input id="srv" style="flex:1;min-width:200px"><button class="btn" id="srvgo">Connect</button></div>
   <div id="alerts" class="alert" hidden></div>
 
   <section class="card">
@@ -73,7 +67,7 @@
   </section>
 </div>
 
-<script src="/shared.js"></script>
+<script src="../shared.js"></script>
 <script>
 let meds = [];
 let rxs = [];
@@ -167,6 +161,15 @@ $('addForm').addEventListener('submit', async (e) => {
     loadMeds();
   } catch (err) { alert(err.message); }
 });
+
+if (location.protocol === 'file:') {
+  $('srvbar').hidden = false;
+  $('srv').value = API_BASE;
+  $('srvgo').onclick = () => {
+    try { localStorage.setItem('apiBase', $('srv').value.trim().replace(/\/+$/, '')); } catch {}
+    location.reload();
+  };
+}
 
 subscribe({ medicines: loadMeds, prescriptions: loadRx }, $('live'));
 </script>
