@@ -7,12 +7,14 @@ Doctor console and Pharmacy/Lab app, linked through one Supabase database and ho
 - Pharmacy presses **Dispense** → stock is deducted (atomically) and the doctor sees the prescription as *Dispensed*.
 - Pharmacy changes stock / adds medicines → the doctor's live medicine search shows the new stock and same-formula alternatives.
 - A doctor only sees their own prescriptions; pharmacy sees all.
+- **Dose builder:** the doctor enters dose, times a day and number of days; the quantity is calculated (e.g. 2 tablets × 3 times × 5 days = 30). Syrups and inhalers are stocked per bottle/device, so those ask for *packs* instead.
+- **Alternatives search:** searching a brand (e.g. Disprin) also lists every other brand with the same formula (Aspirin), in stock or not, flagged *same strength* or *different strength*.
 
 ## Files
 
 | Path | What |
 |---|---|
-| `public/` | Static pages: `index.html` (login), `lab/`, `doctor/`, shared CSS/JS |
+| `public/` | Static pages: `index.html` (login), `lab/`, `doctor/`, `kihd.css` (shared theme), `shared.js` |
 | `api/[...path].js` | Vercel serverless entry for every `/api/*` call |
 | `lib/` | `handler.js` (routes + role checks), `supabase.js` (DB client), `auth.js` (passwords + session cookie) |
 | `supabase/schema.sql` | Tables, atomic dispense function, starting medicine list |

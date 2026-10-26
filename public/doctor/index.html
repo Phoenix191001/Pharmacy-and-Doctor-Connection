@@ -3,129 +3,239 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Doctor Console</title>
-<link rel="stylesheet" href="/doctor/doctor.css">
+<title>Doctor Console — KIHD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kihd.css">
 </head>
 <body>
-<header><h1>🩺 Doctor Console</h1><span class="who"><span class="live" id="live">○ Connecting...</span><span id="me"></span><button class="hbtn" id="logout">Log out</button></span></header>
-<main>
-  <section class="card">
-    <h2>1. Patient</h2>
-    <div class="row"><input id="pName" placeholder="Patient name *"><input id="pAge" type="number" placeholder="Age"></div>
-    <div class="row"><input id="pPhone" placeholder="Phone number"><input id="pToken" placeholder="Token ID"></div>
-    <div class="mute">Prescribing as <b id="doctor">…</b></div>
-  </section>
+<header class="topbar">
+  <div class="brand"><span data-logo></span><div><b>KIHD</b><span>Doctor Console</span></div></div>
+  <div class="top-right">
+    <span class="live off" id="live">Connecting…</span>
+    <span class="role-chip">Doctor</span>
+    <span class="user-chip" id="me"></span>
+    <button class="btn ghost sm" id="logout">Log out</button>
+  </div>
+</header>
 
-  <section class="card">
-    <h2>2. Prescription</h2>
-    <div id="rxItems"></div>
-    <div class="row">
-      <button id="send">Send to Lab / Pharmacy</button>
-      <button class="ghost" id="clear">Clear</button>
+<main class="container grid2">
+  <div class="col stagger">
+    <section class="card">
+      <h2><span class="step">1</span> Patient</h2>
+      <div class="fields">
+        <label class="f">Patient name *<input id="pName" placeholder="Full name" autocomplete="off"></label>
+        <label class="f">Age<input id="pAge" type="number" min="0" max="130" placeholder="Years"></label>
+        <label class="f">Phone<input id="pPhone" placeholder="03xx-xxxxxxx"></label>
+        <label class="f">Token ID<input id="pToken" placeholder="e.g. A-014"></label>
+      </div>
+      <p class="muted small" style="margin:12px 0 0">Prescribing as <b id="doctor">…</b></p>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">2</span> Prescription <span class="count" id="cartCount" hidden></span></h2>
+      <div id="rxItems"></div>
+      <div class="actions">
+        <button class="btn" id="send">Send to Lab / Pharmacy ➜</button>
+        <button class="btn ghost" id="clear">Clear</button>
+      </div>
+    </section>
+  </div>
+
+  <aside class="col">
+    <section class="card sticky anim">
+      <h2>🔎 Find medicine <span class="muted small" style="font-weight:600">live pharmacy stock</span></h2>
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.500-3.500"/></svg>
+        <input id="q" placeholder="Search a brand or formula, e.g. Disprin" autocomplete="off" autofocus>
+      </div>
+      <div id="results" class="results"></div>
+    </section>
+  </aside>
+
+  <section class="card span2 anim">
+    <h2>📋 Sent prescriptions</h2>
+    <div class="tablewrap">
+      <table><thead><tr><th>ID</th><th>Patient</th><th>Medicines</th><th>Status</th><th></th></tr></thead><tbody id="sent"></tbody></table>
     </div>
-    <div class="mute" id="msg"></div>
-  </section>
-
-  <section class="card full">
-    <h2>Search medicine (live stock)</h2>
-    <input id="q" placeholder="Search by brand or formula, e.g. Augmentin or Paracetamol" autofocus>
-    <div id="results" style="margin-top:10px"></div>
-  </section>
-
-  <section class="card full">
-    <h2>Sent prescriptions</h2>
-    <table><thead><tr><th>ID</th><th>Patient</th><th>Medicines</th><th>Status</th><th></th></tr></thead><tbody id="sent"></tbody></table>
   </section>
 </main>
+
 <script src="/shared.js"></script>
 <script>
 let meds = [], sent = [], cart = [];
-
-function stockBadge(m) {
-  if (m.stock <= 0) return '<span class="badge out">Out of stock</span>';
-  if (m.stock <= m.threshold) return `<span class="badge low">Low (${m.stock})</span>`;
-  return `<span class="badge in">In stock (${m.stock})</span>`;
-}
 const $ = (id) => document.getElementById(id);
 
-// Runs every few seconds: stock edits and "dispensed" updates made at the pharmacy show up here.
+/* ---------- medicine helpers ---------- */
+// "Aspirin 300mg" -> generic "Aspirin", strength "300mg"
+const genericOf = (f) => String(f).replace(/\s+\d[\d.,]*\s*(mg|mcg|µg|g|ml|iu|%)\b.*$/i, '').trim();
+const strengthOf = (m) => {
+  const hit = (m.formula.match(/\d[\d.,]*\s*(?:mg|mcg|µg|g|ml|iu|%)/i) || m.name.match(/\d[\d.,]*\s*(?:mg|mcg|µg|g|ml|iu|%)/i) || [''])[0];
+  return hit.replace(/\s+/g, '').toLowerCase();
+};
+const COUNTABLE = ['tablet', 'capsule', 'sublingual', 'sachet', 'injection'];
+const UNIT = { tablet: 'tablet', capsule: 'capsule', sublingual: 'tablet', sachet: 'sachet', injection: 'injection', syrup: 'ml', inhaler: 'puff' };
+const isCounted = (m) => COUNTABLE.includes(String(m.form || '').toLowerCase());
+const unitOf = (m, n = 2) => { const u = UNIT[String(m.form || '').toLowerCase()] || 'unit'; return u === 'ml' || n === 1 ? u : u + 's'; };
+const qtyOf = (c, m) => (isCounted(m)
+  ? Math.ceil(+((Number(c.dose) || 0) * (Number(c.timesPerDay) || 0) * (Number(c.days) || 0)).toFixed(6))
+  : Math.max(1, Math.floor(Number(c.packs) || 1)));
+
+function stockBadge(m) {
+  if (m.stock <= 0) return '<span class="badge bad">Out of stock</span>';
+  if (m.stock <= m.threshold) return `<span class="badge warn">Low · ${m.stock} left</span>`;
+  return `<span class="badge ok">In stock · ${m.stock}</span>`;
+}
+
+/* ---------- live refresh (stock changes + dispensed status come from the pharmacy) ---------- */
 async function refresh() {
   const [m, s] = await Promise.all([api('/api/medicines'), api('/api/prescriptions')]);
   if (changed('meds', m)) { meds = m; renderResults(); if (!cartBusy()) renderCart(); }
   if (changed('sent', s)) { sent = s; renderSent(); }
 }
-// Don't redraw the cart while the doctor is typing a quantity or dosage into it.
+// Don't redraw the cart while the doctor is typing in it.
 const cartBusy = () => $('rxItems').contains(document.activeElement) && document.activeElement !== $('rxItems');
+
+/* ---------- search with same-formula alternatives ---------- */
+function medRow(m, role, ref) {
+  const st = strengthOf(m);
+  let tag = '';
+  if (role === 'alt') {
+    const same = ref && strengthOf(ref) && st && strengthOf(ref) === st;
+    tag = same ? '<span class="badge ok">✓ Same strength</span>' : st ? `<span class="badge info">Different strength · ${esc(st)}</span>` : '';
+  } else if (st) tag = `<span class="badge info">${esc(st)}</span>`;
+  const inCart = cart.some((c) => c.medicineId === m.id);
+  return `<div class="med ${m.stock <= 0 ? 'out' : ''}"><div><div class="name">${esc(m.name)}</div>
+    <div class="meta"><span class="muted small">${esc(m.formula)} · ${esc(m.form)} · Rs ${esc(m.price)}</span></div>
+    <div class="meta">${stockBadge(m)} ${tag}</div></div>
+    <button class="btn sm ${m.stock <= 0 ? 'ghost' : ''}" data-add="${esc(m.id)}" ${inCart ? 'disabled' : ''}>${inCart ? 'Added ✓' : '+ Add'}</button></div>`;
+}
 
 function renderResults() {
   const q = $('q').value.trim().toLowerCase();
-  const list = q ? meds.filter((m) => (m.name + ' ' + m.formula).toLowerCase().includes(q)) : [];
-  $('results').innerHTML = !q ? '<div class="mute">Type to search the pharmacy stock.</div>' :
-    list.length ? list.map((m) => {
-      let alts = '';
-      if (m.stock <= 0) {
-        const a = meds.filter((x) => x.id !== m.id && x.formula.toLowerCase() === m.formula.toLowerCase() && x.stock > 0);
-        alts = a.length
-          ? `<div class="alt"><b>Same formula (${esc(m.formula)}) available:</b>` +
-            a.map((x) => `<div class="med"><div>${esc(x.name)} ${stockBadge(x)}</div><button onclick="add('${x.id}')">Use this</button></div>`).join('') + '</div>'
-          : '<div class="alt">No in-stock alternative with the same formula.</div>';
-      }
-      return `<div class="med"><div><b>${esc(m.name)}</b> <span class="mute">${esc(m.formula)} · ${esc(m.form)}</span><br>${stockBadge(m)}</div>
-        <button onclick="add('${m.id}')" ${m.stock <= 0 ? 'class="ghost"' : ''}>Add</button></div>${alts}`;
-    }).join('') : '<div class="mute">No medicine found.</div>';
+  const box = $('results');
+  if (!q) { box.innerHTML = '<div class="hint">Type a brand name (e.g. <b>Disprin</b>) and every medicine with the same formula appears here as an alternative, in stock or not.</div>'; return; }
+  const hits = meds.filter((m) => (m.name + ' ' + m.formula).toLowerCase().includes(q));
+  if (!hits.length) { box.innerHTML = '<div class="hint">No medicine found.</div>'; return; }
+  // One group per generic (formula without strength): matches first, then alternatives.
+  const keys = [...new Set(hits.map((m) => genericOf(m.formula).toLowerCase()))];
+  const hitIds = new Set(hits.map((m) => m.id));
+  const order = (a, b) => (b.stock > 0) - (a.stock > 0) || a.name.localeCompare(b.name);
+  box.innerHTML = keys.map((k) => {
+    const all = meds.filter((m) => genericOf(m.formula).toLowerCase() === k);
+    const primary = all.filter((m) => hitIds.has(m.id)).sort(order);
+    const alts = all.filter((m) => !hitIds.has(m.id)).sort(order);
+    const title = genericOf(primary[0].formula);
+    return `<div class="group"><div class="group-head"><span>🧪 ${esc(title)}</span><small>${all.length} brand${all.length === 1 ? '' : 's'}</small></div>
+      ${primary.map((m) => medRow(m, 'hit')).join('')}
+      ${alts.length ? `<div class="alt-label">Alternatives · same formula (${esc(title)})</div>${alts.map((m) => medRow(m, 'alt', primary[0])).join('')}` : ''}</div>`;
+  }).join('');
 }
 
+/* ---------- prescription builder ---------- */
 function add(id) {
+  if (cart.some((c) => c.medicineId === id)) return;
   const m = meds.find((x) => x.id === id);
-  if (!cart.find((c) => c.medicineId === id)) cart.push({ medicineId: id, qty: 1, dosage: '' });
-  renderCart();
+  cart.push({ medicineId: id, dose: m && UNIT[String(m.form).toLowerCase()] === 'ml' ? 5 : 1, timesPerDay: 2, days: 5, packs: 1, notes: '' });
+  renderCart(); renderResults();
 }
+
+function totalHtml(c, m) {
+  const q = qtyOf(c, m);
+  const short = q > m.stock;
+  const label = isCounted(m) ? `${q} ${unitOf(m, q)}` : `${q} pack${q === 1 ? '' : 's'}`;
+  return `<small>Total</small><b>${esc(label)}</b>${short ? `<small>only ${m.stock} in stock</small>` : ''}`;
+}
+
 function renderCart() {
+  $('cartCount').hidden = !cart.length;
+  $('cartCount').textContent = cart.length;
   $('rxItems').innerHTML = cart.length ? cart.map((c, i) => {
-    const m = meds.find((x) => x.id === c.medicineId) || {};
-    return `<div class="med"><div><b>${esc(m.name)}</b> ${stockBadge(m)}<div class="row" style="margin:6px 0 0">
-      <input type="number" min="1" value="${c.qty}" style="max-width:80px" onchange="cart[${i}].qty=this.value" title="Quantity">
-      <input placeholder="Dosage, e.g. 1 tablet 3x daily" value="${esc(c.dosage)}" onchange="cart[${i}].dosage=this.value"></div></div>
-      <button class="ghost" onclick="cart.splice(${i},1);renderCart()">✕</button></div>`;
-  }).join('') : '<div class="mute">No medicines added yet.</div>';
+    const m = meds.find((x) => x.id === c.medicineId) || { name: c.medicineId, stock: 0, threshold: 0, form: 'Tablet', formula: '' };
+    const counted = isCounted(m);
+    const unitLabel = UNIT[String(m.form).toLowerCase()] === 'ml' ? 'ml' : unitOf(m, 2);
+    return `<div class="rxitem" data-i="${i}">
+      <div class="rxitem-head"><div><b>${esc(m.name)}</b><div class="muted small">${esc(m.formula)} · ${esc(m.form)}</div><div style="margin-top:6px">${stockBadge(m)}</div></div>
+        <button class="icon-btn" data-remove="${i}" title="Remove">✕</button></div>
+      <div class="dose-grid">
+        <label class="f">Dose (${esc(unitLabel)})<input type="number" min="0.25" max="50" step="0.25" value="${esc(c.dose)}" data-f="dose"></label>
+        <label class="f">Times a day<input type="number" min="1" max="12" step="1" value="${esc(c.timesPerDay)}" data-f="timesPerDay"></label>
+        <label class="f">No. of days<input type="number" min="1" max="365" step="1" value="${esc(c.days)}" data-f="days"></label>
+        ${counted ? `<div class="total ${qtyOf(c, m) > m.stock ? 'warn' : ''}" data-total>${totalHtml(c, m)}</div>`
+          : `<label class="f">Packs to dispense<input type="number" min="1" step="1" value="${esc(c.packs)}" data-f="packs"></label>`}
+      </div>
+      <input class="notes" placeholder="Instructions (optional), e.g. after meals" value="${esc(c.notes)}" data-f="notes" maxlength="200">
+    </div>`;
+  }).join('') : '<div class="empty"><span class="big">💊</span>No medicines yet.<br><span class="small">Search on the right and press <b>+ Add</b>.</span></div>';
 }
 
-function renderSent() {
-  $('sent').innerHTML = sent.length ? sent.map((r) => `<tr><td>${r.id}</td><td>${esc(r.patient.name)}</td>
-    <td>${r.items.map((i) => esc(i.name) + ' ×' + i.qty).join(', ')}</td>
-    <td><span class="badge ${r.status === 'dispensed' ? 'in' : 'low'}">${r.status === 'dispensed' ? 'Dispensed' : 'Waiting at pharmacy'}</span></td>
-    <td><button class="ghost" onclick="printRx('${r.id}')">Print</button></td></tr>`).join('')
-    : '<tr><td colspan="5" class="mute">Nothing sent yet.</td></tr>';
-}
+// Typing updates the numbers without redrawing the cart.
+$('rxItems').addEventListener('input', (e) => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  const row = e.target.closest('.rxitem');
+  const c = cart[row.dataset.i];
+  c[f] = e.target.value;
+  const m = meds.find((x) => x.id === c.medicineId);
+  const t = row.querySelector('[data-total]');
+  if (m && t) { t.innerHTML = totalHtml(c, m); t.classList.toggle('warn', qtyOf(c, m) > m.stock); }
+});
+$('rxItems').addEventListener('click', (e) => {
+  const i = e.target.dataset.remove;
+  if (i === undefined) return;
+  cart.splice(Number(i), 1);
+  renderCart(); renderResults();
+});
+$('results').addEventListener('click', (e) => { const id = e.target.dataset.add; if (id) add(id); });
+$('q').addEventListener('input', renderResults);
 
-$('q').oninput = renderResults;
-$('clear').onclick = () => { cart = []; renderCart(); $('msg').textContent = ''; };
+$('clear').onclick = () => { cart = []; renderCart(); renderResults(); };
+
 $('send').onclick = async () => {
+  if (!$('pName').value.trim()) { toast('Enter the patient name first', 'err'); $('pName').focus(); return; }
+  if (!cart.length) { toast('Add at least one medicine', 'err'); return; }
+  $('send').disabled = true;
   try {
     const rx = await api('/api/prescriptions', {
       patient: { name: $('pName').value.trim(), age: $('pAge').value, phone: $('pPhone').value, token: $('pToken').value },
-      items: cart,
+      items: cart.map((c) => ({ medicineId: c.medicineId, dose: c.dose, timesPerDay: c.timesPerDay, days: c.days, packs: c.packs, notes: c.notes })),
     });
-    $('msg').textContent = rx.id + ' sent to pharmacy.';
-    cart = []; renderCart();
+    toast(`${rx.id} sent to pharmacy ✓`, 'ok');
+    cart = []; renderCart(); renderResults();
+    ['pName', 'pAge', 'pPhone', 'pToken'].forEach((id) => { $(id).value = ''; });
     await refresh();
     printRx(rx.id);
-  } catch (e) { $('msg').textContent = e.message; }
+  } catch (e) { toast(e.message, 'err'); }
+  $('send').disabled = false;
 };
+
+/* ---------- sent list + print ---------- */
+function renderSent() {
+  $('sent').innerHTML = sent.length ? sent.map((r) => `<tr><td><b>${esc(r.id)}</b><div class="muted small">${esc(timeAgo(r.createdAt))}</div></td>
+    <td>${esc(r.patient.name)}<div class="muted small">${r.patient.age ? esc(r.patient.age) + ' y' : ''}</div></td>
+    <td>${r.items.map((i) => `<div><b>${esc(i.name)}</b> × ${esc(i.qty)}<div class="muted small">${esc(i.dosage)}</div></div>`).join('')}</td>
+    <td><span class="badge ${r.status === 'dispensed' ? 'ok' : 'warn'}">${r.status === 'dispensed' ? '✓ Dispensed' : '⏳ Waiting at pharmacy'}</span></td>
+    <td><button class="btn ghost sm" data-print="${esc(r.id)}">Print</button></td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty"><span class="big">📭</span>Nothing sent yet.</td></tr>';
+}
+$('sent').addEventListener('click', (e) => { const id = e.target.dataset.print; if (id) printRx(id); });
 
 function printRx(id) {
   const r = sent.find((x) => x.id === id); if (!r) return;
-  const w = window.open('', '_blank');
-  w.document.write(`<title>${r.id}</title><body style="font-family:sans-serif;max-width:600px;margin:30px auto">
-    <h2>Karachi Institute of Heart Diseases</h2><h3>Prescription ${r.id}</h3>
+  const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to print', 'err'); return; }
+  w.document.write(`<title>${esc(r.id)}</title><body style="font-family:system-ui,sans-serif;max-width:640px;margin:30px auto;color:#14213d">
+    <div style="border-bottom:4px solid #e0213f;padding-bottom:10px;display:flex;justify-content:space-between;align-items:end">
+      <div><h2 style="margin:0;color:#0b2447">Karachi Institute of Heart Diseases</h2><div style="color:#667085">Prescription</div></div><h3 style="margin:0;color:#e0213f">${esc(r.id)}</h3></div>
     <p><b>Patient:</b> ${esc(r.patient.name)} &nbsp; <b>Age:</b> ${esc(r.patient.age)} &nbsp; <b>Phone:</b> ${esc(r.patient.phone)} &nbsp; <b>Token:</b> ${esc(r.patient.token)}</p>
     <p><b>Date:</b> ${new Date(r.createdAt).toLocaleString()}</p><hr>
-    <ol>${r.items.map((i) => `<li style="margin:10px 0"><b>${esc(i.name)}</b> (${esc(i.formula)}) — Qty ${i.qty}<br>${esc(i.dosage)}</li>`).join('')}</ol>
-    <hr><p>${esc(r.doctor)}</p><script>print()<\/script>`);
+    <ol>${r.items.map((i) => `<li style="margin:12px 0"><b>${esc(i.name)}</b> (${esc(i.formula)}) — Qty ${esc(i.qty)}<br>${esc(i.dosage)}</li>`).join('')}</ol>
+    <hr><p><b>${esc(r.doctor)}</b></p><script>print()<\/script>`);
   w.document.close();
 }
 
 $('logout').onclick = logout;
+renderCart(); renderResults(); renderSent();
 requireRole('doctor').then((me) => {
   $('me').textContent = me.name;
   $('doctor').textContent = me.name;

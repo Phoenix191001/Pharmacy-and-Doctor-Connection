@@ -4,26 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign in — KIHD</title>
-<link rel="stylesheet" href="/shared.css">
-<style>
-  .login { max-width: 380px; margin: 12vh auto 0; }
-  .login form { display: flex; flex-direction: column; gap: 12px; }
-  .login label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
-  .login .btn { padding: 10px 14px; }
-  .err { color: var(--bad); background: var(--bad-bg); border-radius: 8px; padding: 8px 10px; }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kihd.css">
 </head>
 <body>
-<main class="wrap login">
-  <h1>Karachi Institute of Heart Diseases</h1>
-  <p class="muted">Sign in as doctor or pharmacy staff.</p>
-  <form id="f" class="card">
-    <label>Username<input name="username" autocomplete="username" autocapitalize="none" required autofocus></label>
-    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
-    <div id="err" class="err" role="alert" hidden></div>
-    <button class="btn" id="go" type="submit">Sign in</button>
-  </form>
-</main>
+<div class="auth">
+  <section class="auth-hero">
+    <span data-logo></span>
+    <h1>Karachi Institute<br>of Heart Diseases</h1>
+    <p>One connected system for doctors and pharmacy. Prescriptions travel instantly from consultation room to dispensing counter.</p>
+    <svg class="ecg-line" viewBox="0 0 520 70" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 38 H120 L140 38 L156 8 L178 64 L196 22 L210 38 H330 L350 38 L366 8 L388 64 L406 22 L420 38 H520"/>
+    </svg>
+    <div class="auth-pills"><span>🩺 Doctor console</span><span>💊 Pharmacy &amp; Lab</span><span>⚡ Live updates</span></div>
+  </section>
+
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h2>Welcome back</h2>
+      <p class="muted">Sign in with your hospital account.</p>
+      <form id="f">
+        <label class="f">Username<input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Your username" required autofocus></label>
+        <label class="f">Password<input name="password" type="password" autocomplete="current-password" placeholder="Your password" required></label>
+        <div id="err" class="err" role="alert" hidden></div>
+        <button class="btn block" id="go" type="submit">Sign in</button>
+      </form>
+      <p class="muted small" style="margin-top:22px">Doctors are taken to the Doctor console, pharmacy staff to Pharmacy &amp; Lab.</p>
+    </div>
+  </section>
+</div>
 <script src="/shared.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -37,13 +48,17 @@ $('f').addEventListener('submit', async (e) => {
   const f = Object.fromEntries(new FormData(e.target));
   $('err').hidden = true;
   $('go').disabled = true;
+  $('go').textContent = 'Signing in…';
   try {
     const me = await api('/api/auth/login', { username: f.username, password: f.password });
+    $('go').textContent = 'Welcome ' + me.name.split(' ')[0] + ' ✓';
     location.href = home(me.role);
   } catch (err) {
     $('err').textContent = err.message;
     $('err').hidden = false;
+    $('err').classList.remove('shake'); void $('err').offsetWidth; $('err').classList.add('shake');
     $('go').disabled = false;
+    $('go').textContent = 'Sign in';
   }
 });
 </script>
