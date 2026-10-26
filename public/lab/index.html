@@ -4,47 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pharmacy / Lab — KIHD</title>
-<link rel="stylesheet" href="/shared.css">
-<style>
-  .alert { border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; background: var(--warn-bg); border: 1px solid var(--warn); }
-  .alert ul { margin: 6px 0 0; padding-left: 18px; }
-  .alert .out { color: var(--bad); font-weight: 600; }
-  .alert .low { color: var(--warn); font-weight: 600; }
-  .rx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-  .rx { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
-  .rx-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
-  .rx ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  .rx li { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
-  .rx .btn { margin-top: auto; }
-  .tablewrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  td input[type=number] { width: 78px; }
-  .filter { width: 100%; max-width: 320px; margin-bottom: 10px; }
-  form.add { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
-  form.add label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
-  .who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .empty { color: var(--muted); }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kihd.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <h1>Pharmacy / Lab <span class="muted" style="font-weight:400">· Karachi Institute of Heart Diseases</span></h1>
-    <span class="who"><span id="live" class="live off">○ Reconnecting</span><span id="me" class="muted"></span><button class="btn secondary" id="logout">Log out</button></span>
-  </header>
+<header class="topbar">
+  <div class="brand"><span data-logo></span><div><b>KIHD</b><span>Pharmacy &amp; Lab</span></div></div>
+  <div class="top-right">
+    <span class="live off" id="live">Connecting…</span>
+    <span class="role-chip">Pharmacy</span>
+    <span class="user-chip" id="me"></span>
+    <button class="btn ghost sm" id="logout">Log out</button>
+  </div>
+</header>
+
+<main class="container">
+  <div class="kpis stagger">
+    <div class="card kpi k1"><div class="ico">📥</div><div><b id="kPending" data-v="0">0</b><span>Pending prescriptions</span></div></div>
+    <div class="card kpi k2"><div class="ico">⚠️</div><div><b id="kLow" data-v="0">0</b><span>Low on stock</span></div></div>
+    <div class="card kpi k3"><div class="ico">🚫</div><div><b id="kOut" data-v="0">0</b><span>Out of stock</span></div></div>
+    <div class="card kpi k4"><div class="ico">✅</div><div><b id="kDone" data-v="0">0</b><span>Dispensed today</span></div></div>
+  </div>
 
   <div id="alerts" class="alert" hidden></div>
 
-  <section class="card">
-    <h2>Incoming prescriptions <span id="rxCount" class="muted"></span></h2>
+  <section class="card anim" style="margin-bottom:20px">
+    <h2>📥 Incoming prescriptions <span id="rxCount" class="count" hidden></span></h2>
     <div id="queue" class="rx-grid"></div>
   </section>
 
-  <section class="card">
-    <h2>Inventory</h2>
-    <input id="filter" class="filter" type="search" placeholder="Filter by brand or formula…">
+  <section class="card anim" style="margin-bottom:20px">
+    <h2>📦 Inventory</h2>
+    <div class="toolbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.500-3.500"/></svg>
+        <input id="filter" type="search" placeholder="Filter by brand or formula…">
+      </div>
+    </div>
     <div class="tablewrap">
       <table>
         <thead><tr><th>Medicine</th><th>Formula</th><th>Status</th><th>Stock</th><th>Low-stock at</th><th></th></tr></thead>
@@ -53,79 +51,90 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>Add new medicine</h2>
+  <section class="card anim">
+    <h2>➕ Add new medicine</h2>
     <form id="addForm" class="add">
-      <label>Brand name *<input name="name" required></label>
-      <label>Formula *<input name="formula" required></label>
-      <label>Stock<input name="stock" type="number" min="0" value="0"></label>
-      <label>Price (Rs)<input name="price" type="number" min="0" step="0.01" value="0"></label>
-      <label>Low-stock alert at<input name="threshold" type="number" min="0" value="10"></label>
+      <label class="f">Brand name *<input name="name" required></label>
+      <label class="f">Formula *<input name="formula" required placeholder="e.g. Aspirin 75mg"></label>
+      <label class="f">Form<select name="form"><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Injection</option><option>Sublingual</option><option>Inhaler</option><option>Sachet</option></select></label>
+      <label class="f">Stock<input name="stock" type="number" min="0" value="0"></label>
+      <label class="f">Price (Rs)<input name="price" type="number" min="0" step="0.01" value="0"></label>
+      <label class="f">Low-stock alert at<input name="threshold" type="number" min="0" value="10"></label>
       <button class="btn" type="submit">Add medicine</button>
     </form>
   </section>
-</div>
+</main>
 
 <script src="/shared.js"></script>
 <script>
 let meds = [];
 let rxs = [];
+let invStale = false;
 const $ = (id) => document.getElementById(id);
 
-let invStale = false;
 const statusOf = (m) => (m.stock <= 0 ? ['bad', 'Out of stock'] : m.stock <= m.threshold ? ['warn', 'Low'] : ['ok', 'In stock']);
+
+function renderKpis() {
+  countTo($('kPending'), rxs.filter((r) => r.status === 'pending').length);
+  countTo($('kLow'), meds.filter((m) => m.stock > 0 && m.stock <= m.threshold).length);
+  countTo($('kOut'), meds.filter((m) => m.stock <= 0).length);
+  const today = new Date().toDateString();
+  countTo($('kDone'), rxs.filter((r) => r.status === 'dispensed' && r.dispensedAt && new Date(r.dispensedAt).toDateString() === today).length);
+}
 
 function renderAlerts() {
   const low = meds.filter((m) => m.stock <= m.threshold).sort((a, b) => a.stock - b.stock);
   const box = $('alerts');
   box.hidden = !low.length;
   if (!low.length) return;
-  box.innerHTML = `<strong>Restock needed (${low.length})</strong><ul>` + low.map((m) =>
-    `<li class="${m.stock <= 0 ? 'out' : 'low'}">${esc(m.name)} <span class="muted">(${esc(m.formula)})</span> — ` +
-    `${m.stock <= 0 ? 'out of stock' : m.stock + ' left, alert at ' + m.threshold}</li>`).join('') + '</ul>';
+  box.innerHTML = `<strong>⚠️ Restock needed (${low.length})</strong><div class="chips">` + low.map((m) =>
+    `<span class="chip ${m.stock <= 0 ? 'out' : ''}">${esc(m.name)} <span class="muted">${esc(m.formula)}</span> · ${m.stock <= 0 ? 'out of stock' : m.stock + ' left'}</span>`).join('') + '</div>';
 }
 
 function renderQueue() {
   const pending = rxs.filter((r) => r.status === 'pending');
-  $('rxCount').textContent = pending.length ? `(${pending.length})` : '';
-  if (!pending.length) { $('queue').innerHTML = '<p class="empty">No pending prescriptions.</p>'; return; }
+  $('rxCount').hidden = !pending.length;
+  $('rxCount').textContent = pending.length;
+  if (!pending.length) { $('queue').innerHTML = '<div class="empty" style="grid-column:1/-1"><span class="big">🎉</span>All caught up. No pending prescriptions.</div>'; return; }
   const byId = Object.fromEntries(meds.map((m) => [m.id, m]));
   $('queue').innerHTML = pending.map((r) => {
     const items = r.items.map((it) => {
       const ok = (byId[it.medicineId]?.stock ?? 0) >= it.qty;
-      return `<li><span><strong>${esc(it.name)}</strong> × ${esc(it.qty)}<br><span class="muted">${esc(it.formula)}${it.dosage ? ' · ' + esc(it.dosage) : ''}</span></span>` +
+      return `<li><span><strong>${esc(it.name)}</strong> × ${esc(it.qty)}<br><span class="muted small">${esc(it.formula)}</span>` +
+        `${it.dosage ? `<br><span class="small">${esc(it.dosage)}</span>` : ''}</span>` +
         `<span class="badge ${ok ? 'ok' : 'bad'}">${ok ? 'available' : 'short'}</span></li>`;
     }).join('');
-    return `<div class="rx"><div class="rx-head"><span>${esc(r.id)}</span><span>${r.patient.token ? 'Token ' + esc(r.patient.token) : ''}</span></div>` +
-      `<div>${esc(r.patient.name)}<span class="muted">${r.patient.age ? ', ' + esc(r.patient.age) + ' y' : ''}</span><br><span class="muted">${esc(r.doctor)}</span></div>` +
-      `<ul>${items}</ul><button class="btn" data-dispense="${esc(r.id)}">Dispense</button></div>`;
+    return `<div class="rx"><div class="rx-head"><span class="rx-id">${esc(r.id)}</span>${r.patient.token ? `<span class="badge info">Token ${esc(r.patient.token)}</span>` : ''}</div>` +
+      `<div class="rx-patient"><b>${esc(r.patient.name)}</b><span class="muted">${r.patient.age ? ', ' + esc(r.patient.age) + ' y' : ''}</span><br>` +
+      `<span class="muted small">${esc(r.doctor)} · ${esc(timeAgo(r.createdAt))}</span></div>` +
+      `<ul>${items}</ul><button class="btn" data-dispense="${esc(r.id)}">Dispense ✓</button></div>`;
   }).join('');
 }
 
 function renderInventory() {
   const q = $('filter').value.trim().toLowerCase();
   const rows = meds.filter((m) => !q || m.name.toLowerCase().includes(q) || m.formula.toLowerCase().includes(q));
-  // Don't clobber a field the user is typing in.
+  // Don't clobber a field the user is typing in; redraw once they leave it.
   if (document.activeElement && $('inv').contains(document.activeElement)) { invStale = true; return; }
   invStale = false;
   $('inv').innerHTML = rows.map((m) => {
     const [cls, label] = statusOf(m);
-    return `<tr data-id="${esc(m.id)}"><td><strong>${esc(m.name)}</strong><br><span class="muted">${esc(m.form)} · Rs ${esc(m.price)}</span></td>` +
+    return `<tr data-id="${esc(m.id)}"><td><strong>${esc(m.name)}</strong><br><span class="muted small">${esc(m.form)} · Rs ${esc(m.price)}</span></td>` +
       `<td>${esc(m.formula)}</td><td><span class="badge ${cls}">${label}</span></td>` +
       `<td><input type="number" min="0" data-field="stock" value="${m.stock}"></td>` +
       `<td><input type="number" min="0" data-field="threshold" value="${m.threshold}"></td>` +
-      `<td><button class="btn secondary" data-restock="${esc(m.id)}">+50</button></td></tr>`;
+      `<td><button class="btn ghost sm" data-restock="${esc(m.id)}">+50</button></td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No medicines match.</td></tr>';
 }
 
-const renderMeds = () => { renderAlerts(); renderInventory(); renderQueue(); };
+const renderMeds = () => { renderAlerts(); renderInventory(); renderQueue(); renderKpis(); };
 async function loadMeds() {
   const data = await api('/api/medicines');
   if (changed('meds', data)) { meds = data; renderMeds(); }
 }
 async function loadRx() {
   const data = await api('/api/prescriptions');
-  if (changed('rxs', data)) { rxs = data; renderQueue(); }
+  if (changed('rxs', data)) { rxs = data; renderQueue(); renderKpis(); }
 }
 
 $('filter').addEventListener('input', renderInventory);
@@ -135,7 +144,7 @@ $('inv').addEventListener('change', async (e) => {
   const field = e.target.dataset.field;
   if (!field) return;
   const id = e.target.closest('tr').dataset.id;
-  try { await api('/api/medicines', { id, [field]: Number(e.target.value) }); } catch (err) { alert(err.message); }
+  try { await api('/api/medicines', { id, [field]: Number(e.target.value) }); toast('Saved ✓', 'ok'); } catch (err) { toast(err.message, 'err'); }
   e.target.blur();
   loadMeds();
 });
@@ -144,7 +153,7 @@ $('inv').addEventListener('click', async (e) => {
   const id = e.target.dataset.restock;
   if (!id) return;
   const m = meds.find((x) => x.id === id);
-  try { await api('/api/medicines', { id, stock: m.stock + 50 }); } catch (err) { alert(err.message); }
+  try { await api('/api/medicines', { id, stock: m.stock + 50 }); toast(`${m.name}: +50 added`, 'ok'); } catch (err) { toast(err.message, 'err'); }
   loadMeds();
 });
 
@@ -152,8 +161,8 @@ $('queue').addEventListener('click', async (e) => {
   const id = e.target.dataset.dispense;
   if (!id) return;
   e.target.disabled = true;
-  try { await api(`/api/prescriptions/${encodeURIComponent(id)}/dispense`, {}); }
-  catch (err) { alert(err.message); e.target.disabled = false; }
+  try { await api(`/api/prescriptions/${encodeURIComponent(id)}/dispense`, {}); toast(`${id} dispensed ✓ stock updated`, 'ok'); }
+  catch (err) { toast(err.message, 'err'); e.target.disabled = false; }
   loadMeds(); loadRx();
 });
 
@@ -162,12 +171,13 @@ $('addForm').addEventListener('submit', async (e) => {
   const f = Object.fromEntries(new FormData(e.target));
   try {
     await api('/api/medicines', {
-      name: f.name, formula: f.formula, stock: Number(f.stock), price: Number(f.price), threshold: Number(f.threshold),
+      name: f.name, formula: f.formula, form: f.form, stock: Number(f.stock), price: Number(f.price), threshold: Number(f.threshold),
     });
     e.target.reset();
     e.target.threshold.value = 10;
+    toast(`${f.name} added ✓`, 'ok');
     loadMeds();
-  } catch (err) { alert(err.message); }
+  } catch (err) { toast(err.message, 'err'); }
 });
 
 $('logout').onclick = logout;
