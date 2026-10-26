@@ -19,3 +19,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
 .mute{color:var(--mute);font-size:13px}.alt{background:var(--warnbg);border-radius:6px;padding:8px;margin:6px 0}
 .med{padding:8px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .med>div{flex:1}.med button{flex:none}
+
+.who{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.who #me{font-size:13px}
+.hbtn{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);padding:4px 10px}
+@media(prefers-color-scheme:dark){.hbtn{color:#06201d;background:rgba(0,0,0,.15);border-color:rgba(0,0,0,.3)}}

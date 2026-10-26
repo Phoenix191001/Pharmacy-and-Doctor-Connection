@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Doctor Console</title>
-<link rel="stylesheet" href="/shared.css">
+<link rel="stylesheet" href="/doctor/doctor.css">
 </head>
 <body>
-<header><h1>🩺 Doctor Console</h1><span class="live" id="live">○ Connecting...</span></header>
+<header><h1>🩺 Doctor Console</h1><span class="who"><span class="live" id="live">○ Connecting...</span><span id="me"></span><button class="hbtn" id="logout">Log out</button></span></header>
 <main>
   <section class="card">
     <h2>1. Patient</h2>
     <div class="row"><input id="pName" placeholder="Patient name *"><input id="pAge" type="number" placeholder="Age"></div>
     <div class="row"><input id="pPhone" placeholder="Phone number"><input id="pToken" placeholder="Token ID"></div>
-    <div class="row"><input id="doctor" placeholder="Doctor name" value="Dr. "></div>
+    <div class="mute">Prescribing as <b id="doctor">…</b></div>
   </section>
 
   <section class="card">
@@ -40,12 +40,22 @@
 <script src="/shared.js"></script>
 <script>
 let meds = [], sent = [], cart = [];
+
+function stockBadge(m) {
+  if (m.stock <= 0) return '<span class="badge out">Out of stock</span>';
+  if (m.stock <= m.threshold) return `<span class="badge low">Low (${m.stock})</span>`;
+  return `<span class="badge in">In stock (${m.stock})</span>`;
+}
 const $ = (id) => document.getElementById(id);
 
+// Runs every few seconds: stock edits and "dispensed" updates made at the pharmacy show up here.
 async function refresh() {
-  [meds, sent] = await Promise.all([API.get('/api/medicines'), API.get('/api/prescriptions')]);
-  renderResults(); renderCart(); renderSent();
+  const [m, s] = await Promise.all([api('/api/medicines'), api('/api/prescriptions')]);
+  if (changed('meds', m)) { meds = m; renderResults(); if (!cartBusy()) renderCart(); }
+  if (changed('sent', s)) { sent = s; renderSent(); }
 }
+// Don't redraw the cart while the doctor is typing a quantity or dosage into it.
+const cartBusy = () => $('rxItems').contains(document.activeElement) && document.activeElement !== $('rxItems');
 
 function renderResults() {
   const q = $('q').value.trim().toLowerCase();
@@ -92,9 +102,9 @@ $('q').oninput = renderResults;
 $('clear').onclick = () => { cart = []; renderCart(); $('msg').textContent = ''; };
 $('send').onclick = async () => {
   try {
-    const rx = await API.post('/api/prescriptions', {
+    const rx = await api('/api/prescriptions', {
       patient: { name: $('pName').value.trim(), age: $('pAge').value, phone: $('pPhone').value, token: $('pToken').value },
-      doctor: $('doctor').value, items: cart,
+      items: cart,
     });
     $('msg').textContent = rx.id + ' sent to pharmacy.';
     cart = []; renderCart();
@@ -115,8 +125,12 @@ function printRx(id) {
   w.document.close();
 }
 
-onLive(refresh);
-refresh();
+$('logout').onclick = logout;
+requireRole('doctor').then((me) => {
+  $('me').textContent = me.name;
+  $('doctor').textContent = me.name;
+  startPolling(refresh, $('live'));
+});
 </script>
 </body>
 </html>
