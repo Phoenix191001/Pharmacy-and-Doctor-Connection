@@ -1,12 +1,11 @@
 {
-  "name": "kihd-pharmacy-prototype",
-  "version": "1.0.0",
-  "description": "Pharmacy/Lab side of the Karachi Institute of Heart Diseases prototype",
-  "main": "server.js",
+  "name": "kihd-pharmacy-doctor",
+  "version": "2.0.0",
+  "description": "Karachi Institute of Heart Diseases prototype: linked Doctor and Pharmacy/Lab apps on Vercel + Supabase",
   "scripts": {
     "start": "node server.js",
-    "seed": "node seed.js"
+    "create-user": "node scripts/create-user.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": { "node": ">=20" },
   "license": "MIT"
 }

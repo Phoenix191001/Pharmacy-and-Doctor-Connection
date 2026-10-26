@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in — KIHD</title>
+<link rel="stylesheet" href="/shared.css">
+<style>
+  .login { max-width: 380px; margin: 12vh auto 0; }
+  .login form { display: flex; flex-direction: column; gap: 12px; }
+  .login label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .login .btn { padding: 10px 14px; }
+  .err { color: var(--bad); background: var(--bad-bg); border-radius: 8px; padding: 8px 10px; }
+</style>
+</head>
+<body>
+<main class="wrap login">
+  <h1>Karachi Institute of Heart Diseases</h1>
+  <p class="muted">Sign in as doctor or pharmacy staff.</p>
+  <form id="f" class="card">
+    <label>Username<input name="username" autocomplete="username" autocapitalize="none" required autofocus></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <div id="err" class="err" role="alert" hidden></div>
+    <button class="btn" id="go" type="submit">Sign in</button>
+  </form>
+</main>
+<script src="/shared.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const home = (role) => (role === 'doctor' ? '/doctor/' : '/lab/');
+
+// Already signed in? Skip the form.
+fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null)).then((me) => { if (me) location.replace(home(me.role)); }).catch(() => {});
+
+$('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  $('err').hidden = true;
+  $('go').disabled = true;
+  try {
+    const me = await api('/api/auth/login', { username: f.username, password: f.password });
+    location.href = home(me.role);
+  } catch (err) {
+    $('err').textContent = err.message;
+    $('err').hidden = false;
+    $('go').disabled = false;
+  }
+});
+</script>
+</body>
+</html>

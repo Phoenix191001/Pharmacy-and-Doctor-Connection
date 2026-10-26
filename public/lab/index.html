@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pharmacy / Lab — KIHD</title>
-<link rel="stylesheet" href="../shared.css">
+<link rel="stylesheet" href="/shared.css">
 <style>
   .alert { border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; background: var(--warn-bg); border: 1px solid var(--warn); }
   .alert ul { margin: 6px 0 0; padding-left: 18px; }
@@ -24,7 +24,7 @@
   .filter { width: 100%; max-width: 320px; margin-bottom: 10px; }
   form.add { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
   form.add label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
-  .srvbar:not([hidden]) { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .empty { color: var(--muted); }
 </style>
 </head>
@@ -32,10 +32,9 @@
 <div class="wrap">
   <header class="top">
     <h1>Pharmacy / Lab <span class="muted" style="font-weight:400">· Karachi Institute of Heart Diseases</span></h1>
-    <span id="live" class="live off">○ Reconnecting</span>
+    <span class="who"><span id="live" class="live off">○ Reconnecting</span><span id="me" class="muted"></span><button class="btn secondary" id="logout">Log out</button></span>
   </header>
 
-  <div id="srvbar" class="card srvbar" hidden><span>Opened as a file. Server address:</span><input id="srv" style="flex:1;min-width:200px"><button class="btn" id="srvgo">Connect</button></div>
   <div id="alerts" class="alert" hidden></div>
 
   <section class="card">
@@ -67,12 +66,13 @@
   </section>
 </div>
 
-<script src="../shared.js"></script>
+<script src="/shared.js"></script>
 <script>
 let meds = [];
 let rxs = [];
 const $ = (id) => document.getElementById(id);
 
+let invStale = false;
 const statusOf = (m) => (m.stock <= 0 ? ['bad', 'Out of stock'] : m.stock <= m.threshold ? ['warn', 'Low'] : ['ok', 'In stock']);
 
 function renderAlerts() {
@@ -106,7 +106,8 @@ function renderInventory() {
   const q = $('filter').value.trim().toLowerCase();
   const rows = meds.filter((m) => !q || m.name.toLowerCase().includes(q) || m.formula.toLowerCase().includes(q));
   // Don't clobber a field the user is typing in.
-  if (document.activeElement && $('inv').contains(document.activeElement)) return;
+  if (document.activeElement && $('inv').contains(document.activeElement)) { invStale = true; return; }
+  invStale = false;
   $('inv').innerHTML = rows.map((m) => {
     const [cls, label] = statusOf(m);
     return `<tr data-id="${esc(m.id)}"><td><strong>${esc(m.name)}</strong><br><span class="muted">${esc(m.form)} · Rs ${esc(m.price)}</span></td>` +
@@ -118,10 +119,17 @@ function renderInventory() {
 }
 
 const renderMeds = () => { renderAlerts(); renderInventory(); renderQueue(); };
-async function loadMeds() { meds = await api('/api/medicines'); renderMeds(); }
-async function loadRx() { rxs = await api('/api/prescriptions'); renderQueue(); }
+async function loadMeds() {
+  const data = await api('/api/medicines');
+  if (changed('meds', data)) { meds = data; renderMeds(); }
+}
+async function loadRx() {
+  const data = await api('/api/prescriptions');
+  if (changed('rxs', data)) { rxs = data; renderQueue(); }
+}
 
 $('filter').addEventListener('input', renderInventory);
+$('inv').addEventListener('focusout', () => { if (invStale) setTimeout(renderInventory, 0); });
 
 $('inv').addEventListener('change', async (e) => {
   const field = e.target.dataset.field;
@@ -145,7 +153,7 @@ $('queue').addEventListener('click', async (e) => {
   if (!id) return;
   e.target.disabled = true;
   try { await api(`/api/prescriptions/${encodeURIComponent(id)}/dispense`, {}); }
-  catch (err) { alert(err.message); }
+  catch (err) { alert(err.message); e.target.disabled = false; }
   loadMeds(); loadRx();
 });
 
@@ -162,16 +170,13 @@ $('addForm').addEventListener('submit', async (e) => {
   } catch (err) { alert(err.message); }
 });
 
-if (location.protocol === 'file:') {
-  $('srvbar').hidden = false;
-  $('srv').value = API_BASE;
-  $('srvgo').onclick = () => {
-    try { localStorage.setItem('apiBase', $('srv').value.trim().replace(/\/+$/, '')); } catch {}
-    location.reload();
-  };
-}
+$('logout').onclick = logout;
 
-subscribe({ medicines: loadMeds, prescriptions: loadRx }, $('live'));
+// New prescriptions from the doctor side and stock changes arrive through this poll.
+requireRole('pharmacy').then((me) => {
+  $('me').textContent = me.name;
+  startPolling(() => Promise.all([loadMeds(), loadRx()]), $('live'));
+});
 </script>
 </body>
 </html>
